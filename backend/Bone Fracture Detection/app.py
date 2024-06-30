@@ -7,22 +7,17 @@ import torch
 from pathlib import Path
 from matplotlib.colors import TABLEAU_COLORS
 
-# Allowed file extensions for upload
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
-# Model and image dimensions
 parent_root = Path(__file__).parent.parent.absolute().__str__()
 h, w = 640, 640
 model_onnx_path = os.path.join(parent_root, "yolov7-p6-bonefracture.onnx")
 
-# Check for CUDA availability
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Predefined colors for visualizing detections
 colors = list(TABLEAU_COLORS.values())[:10]
 
 def load_img(uploaded_file):
-    """Function to load and decode an uploaded image."""
     try:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
         opencv_image = cv2.imdecode(file_bytes, 1)
@@ -32,7 +27,6 @@ def load_img(uploaded_file):
         return None
 
 def preproc(img):
-    """Preprocess image: resize and normalize."""
     try:
         img = cv2.resize(img, (w, h), interpolation=cv2.INTER_LINEAR)
         img = img.astype(np.float32).transpose(2, 0, 1) / 255
@@ -42,7 +36,6 @@ def preproc(img):
         return None
 
 def model_inference(model_path, image_np, device="cpu"):
-    """Perform inference using the ONNX model."""
     providers = ["CUDAExecutionProvider"] if device == "cuda" else ["CPUExecutionProvider"]
     try:
         session = onnxruntime.InferenceSession(model_path, providers=providers)
@@ -55,7 +48,6 @@ def model_inference(model_path, image_np, device="cpu"):
         return None
 
 def post_process(img, output, score_threshold=0.3):
-    """Post-process the model output and visualize detections."""
     try:
         det_bboxes, det_scores, det_labels = output[:, 0:4], output[:, 4], output[:, 5]
         id2names = {
@@ -69,7 +61,6 @@ def post_process(img, output, score_threshold=0.3):
             if det_scores[idx] > score_threshold:
                 bbox = det_bboxes[idx]
                 label = int(det_labels[idx])
-                # Convert bbox format and validate coordinates
                 bbox_xywhn = xyxy2xywhn(bbox, H, W)
                 label_txt += f"{label} {det_scores[idx]:.5f} " \
                              f"{bbox_xywhn[0]:.5f} {bbox_xywhn[1]:.5f} " \
@@ -79,7 +70,6 @@ def post_process(img, output, score_threshold=0.3):
                 x1, y1, x2, y2 = bbox_int
                 color_map = colors[label]
                 txt = f"{id2names[label]} {det_scores[idx]:.2f}"
-                # Draw rectangle and text on image
                 cv2.rectangle(img, (x1, y1), (x2, y2), color_map, 2)
                 (text_width, text_height), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
                 cv2.rectangle(img, (x1 - 2, y1 - text_height - 10), (x1 + text_width + 2, y1), color_map, -1)
@@ -90,12 +80,10 @@ def post_process(img, output, score_threshold=0.3):
         return img, ""
 
 def xyxy2xywhn(bbox, H, W):
-    """Convert bounding box format from (x1, y1, x2, y2) to (x_center_norm, y_center_norm, w_norm, h_norm)."""
     x1, y1, x2, y2 = bbox
     return [0.5 * (x1 + x2) / W, 0.5 * (y1 + y2) / H, (x2 - x1) / W, (y2 - y1) / H]
 
 def xywhn2xyxy(bbox, H, W):
-    """Convert bounding box format from (x_center_norm, y_center_norm, w_norm, h_norm) to (x1, y1, x2, y2)."""
     x, y, w, h = bbox
     return [(x - w / 2) * W, (y - h / 2) * H, (x + w / 2) * W, (y + h / 2) * H]
 
@@ -129,3 +117,7 @@ if __name__ == "__main__":
                         )
         except Exception as e:
             st.error(f"Error: {e}")
+
+    # Display a link at the end of the section
+    st.markdown("---")
+    st.markdown("[Chest Disease Detection](https://colab.research.google.com/drive/115et6XVLLMOCWa2wUZFeQf3Xf6e9HWpT)")
